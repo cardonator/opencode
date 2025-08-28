@@ -9,6 +9,7 @@ import { NamedError } from "../util/error"
 import { z } from "zod"
 import { Session } from "../session"
 import { Bus } from "../bus"
+import { MCPOAuth } from "./oauth"
 
 export namespace MCP {
   const log = Log.create({ service: "mcp" })
@@ -34,12 +35,15 @@ export namespace MCP {
         }
         log.info("found", { key, type: mcp.type })
         if (mcp.type === "remote") {
+          // Build headers including OAuth if configured
+          const headers = await buildHeaders(key, mcp)
+          
           const transports = [
             {
               name: "StreamableHTTP",
               transport: new StreamableHTTPClientTransport(new URL(mcp.url), {
                 requestInit: {
-                  headers: mcp.headers,
+                  headers,
                 },
               }),
             },
@@ -47,7 +51,7 @@ export namespace MCP {
               name: "SSE",
               transport: new SSEClientTransport(new URL(mcp.url), {
                 requestInit: {
-                  headers: mcp.headers,
+                  headers,
                 },
               }),
             },
@@ -154,5 +158,29 @@ export namespace MCP {
       }
     }
     return result
+  }
+
+  /**
+   * Build headers for MCP remote connection, including OAuth if configured
+   */
+  async function buildHeaders(serverName: string, mcpConfig: Config.Mcp & { type: "remote" }): Promise<Record<string, string>> {
+    const headers: Record<string, string> = { ...mcpConfig.headers }
+    
+    // Check if OAuth is configured
+    if (mcpConfig.oauth) {
+      try {
+        const token = await MCPOAuth.getToken(serverName)
+        headers["Authorization"] = `Bearer ${token}`
+        log.debug("added OAuth token to headers", { serverName })
+      } catch (error) {
+        log.warn("failed to get OAuth token, falling back to configured headers", { 
+          serverName, 
+          error: error instanceof Error ? error.message : String(error) 
+        })
+        // Fall back to existing headers if OAuth fails
+      }
+    }
+    
+    return headers
   }
 }
