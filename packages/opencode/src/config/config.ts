@@ -206,6 +206,19 @@ export namespace Config {
       url: z.string().describe("URL of the remote MCP server"),
       enabled: z.boolean().optional().describe("Enable or disable the MCP server on startup"),
       headers: z.record(z.string(), z.string()).optional().describe("Headers to send with the request"),
+      oauth: z
+        .object({
+          clientId: z.string().describe("OAuth client ID"),
+          clientSecret: z.string().optional().describe("OAuth client secret (optional for PKCE flows)"),
+          authUrl: z.string().describe("OAuth authorization endpoint URL"),
+          tokenUrl: z.string().describe("OAuth token endpoint URL"),
+          scopes: z.string().array().optional().describe("OAuth scopes to request"),
+          clientCert: z.string().optional().describe("Path to client certificate for mTLS"),
+          clientKey: z.string().optional().describe("Path to client private key for mTLS"),
+          ca: z.string().optional().describe("Path to CA certificate for mTLS"),
+        })
+        .optional()
+        .describe("OAuth configuration for MCP server authentication"),
     })
     .strict()
     .openapi({
